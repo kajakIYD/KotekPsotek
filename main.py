@@ -37,9 +37,9 @@ class Animal:
 
     def move(self, num_moves):
         self.position += num_moves
-        if self.position + num_moves < GameResult.FINISHED:
+        if self.position < GameResult.FINISHED:
             pass  # do nothing special :p
-        elif self.position + num_moves == GameResult.FINISHED:
+        elif self.position == GameResult.FINISHED:
             self.game_result = GameResult.FINISHED
         else:
             self.position -= 1
@@ -52,7 +52,7 @@ def dump_data(epoch, actors: List[Animal], game_id):
     import csv
     props = ["name", "position", "game_result"]
     header = ["epoch", *props, "game_id", "timestamp"]
-    timestamp = int(datetime.datetime.now().timestamp())
+    timestamp = int(datetime.datetime.now().timestamp() * 1000)
     if epoch == -1 and game_id == 0:
         open_arg = 'w'
     else:
@@ -69,7 +69,7 @@ def dump_data(epoch, actors: List[Animal], game_id):
 
 
 def render_board(actors: List[Animal]):
-    board = ['' for _ in range(NUM_FIELDS)]
+    board = ['' for _ in range(NUM_FIELDS + 1)]
     for actor in actors:
         if actor.game_result != GameResult.CHASED:
             board[actor.position] += actor.name
@@ -93,6 +93,7 @@ def overfinished_logic(actors: List[Animal], animal_moves, chosen_animal_name, n
     animals_for_redraw = [
         actor for actor in actors 
         if actor.name != chosen_animal_name
+        and actor.name != CAT
         and actor.game_result not in (GameResult.CHASED, GameResult.FINISHED)
     ]
     if len(animals_for_redraw) > 0:
@@ -111,15 +112,16 @@ def get_animal_moves(actors, strategy: Strategy, moves_pool: MovesPool):
         SQUIRREL: 0,
         MICE: 0
     }
-    animals_in_game = [actor for actor in actors if actor.name != CAT and actor.game_result == GameResult.IN_PROGRESS]
-    if strategy == Strategy.RANDOM_SINGLE:
-        chosen_animal = random.choice(animals_in_game)
-        if animal_overfinished(chosen_animal, moves_pool.num_animal_moves):
-            animal_moves = overfinished_logic(actors, animal_moves, chosen_animal.name, moves_pool.num_animal_moves)
+    if moves_pool.num_animal_moves > 0:
+        animals_in_game = [actor for actor in actors if actor.name != CAT and actor.game_result == GameResult.IN_PROGRESS]
+        if strategy == Strategy.RANDOM_SINGLE:
+            chosen_animal = random.choice(animals_in_game)
+            if animal_overfinished(chosen_animal, moves_pool.num_animal_moves):
+                animal_moves = overfinished_logic(actors, animal_moves, chosen_animal.name, moves_pool.num_animal_moves)
+            else:
+                animal_moves[chosen_animal.name] = moves_pool.num_animal_moves    
         else:
-            animal_moves[chosen_animal.name] = moves_pool.num_animal_moves    
-    else:
-        raise NotImplementedError(strategy)
+            raise NotImplementedError(strategy)
     return animal_moves
 
 
@@ -139,7 +141,10 @@ def move(actors: List[Animal], strategy, moves_pool: MovesPool):
     )
     for actor in actors:
         if actor.name == CAT:
-            actor.move(moves_pool.num_cat_moves)
+            try:
+                actor.move(moves_pool.num_cat_moves)
+            except GameOverfinishedException:
+                pass  # it is ok that cat instead of consuming 2 moves consumes only once since it has finished game 
         else:
             actor.move(animal_moves[actor.name])
     return actors
@@ -184,16 +189,20 @@ def game_finished(actors: List[Animal]):
 if __name__ == "__main__":
     NUM_GAMES = 100
     import os
-    os.remove("board.log")
+    try:
+        os.remove("board.log")
+    except FileNotFoundError:
+        pass
 
     from loguru import logger
-    if NUM_GAMES > 0:
+    if NUM_GAMES > 1:
         logger.remove()  # remove sink that handles writing to terminal window
     logger.add(f"board.log")
 
     for game_id in range(NUM_GAMES):
+        logger.info(f"***********************{game_id=}***********************")
         if game_id % 25 == 0 or game_id == NUM_GAMES - 1:
-            print(f"{game_id} / {NUM_GAMES}")
+            print(f"{game_id+1} / {NUM_GAMES}")
         animals_start_idx = 6
 
         actors = [
