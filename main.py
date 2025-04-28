@@ -1,11 +1,20 @@
 import random
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
+from abc import ABCMeta
 from enum import Enum, IntEnum
 from typing import List
 
 
 CAT = 'C'
 MICE, SQUIRREL, BIRD = 'M', 'S', 'B'
+
+NUM_SHORTCUT_MOVES = 4
+SHORTCUT_POSITIONS = {
+    MICE: 5,
+    SQUIRREL: 15,
+    BIRD: 25
+}
+
 NUM_FIELDS = 50
 
 BLACK = "BLACK"
@@ -29,11 +38,25 @@ class MovesPool:
     num_animal_moves: int
 
 
-@dataclass
-class Animal:
-    name: str
-    position: int
-    game_result: GameResult
+class ShortcutApplied(IntEnum):
+    NO = 0
+    YES = 1
+
+
+class Creature(metaclass=ABCMeta):
+    def __init__(
+        self,
+        name: str,
+        position: int,
+        game_result: GameResult,
+        shortcut_position: int
+    ):
+        super().__init__()
+        self.name = name
+        self.position = position
+        self.game_result = game_result
+        self.shortcut_position = shortcut_position
+        self._shortcut_applied = ShortcutApplied.NO
 
     def move(self, num_moves):
         self.position += num_moves
@@ -45,12 +68,46 @@ class Animal:
             self.position -= 1
             self.game_result = GameResult.FINISHED
             raise GameOverfinishedException("self.position + num_moves < GameResult.FINISHED")
+    
+    def asdict(self):
+        return {
+            "name": self.name,
+            "position": self.position,
+            "game_result": self.game_result,
+            "shortcut_position": self.shortcut_position,
+            "shortcut_applied": self._shortcut_applied
+        }
 
 
-def dump_data(epoch, actors: List[Animal], game_id):
+class Cat(Creature):
+    def __init__(self, position, game_result):
+        super().__init__(CAT, position, game_result, float("nan"))
+
+
+class Animal(Creature):
+    def __init__(self, name, position, game_result, shortcut_position):
+        super().__init__(name, position, game_result, shortcut_position)
+        self._shortcut_applied = False
+
+    def _obtain_shortcut_if_applicable(self, num_moves) -> int:
+        for num_move in range(1, num_moves + 1):
+            if self.position + num_move  == self.shortcut_position:
+                self._shortcut_applied = ShortcutApplied.YES
+                new_num_moves = num_move  # step into shortcut
+                new_num_moves += NUM_SHORTCUT_MOVES  # move through shortcut
+                new_num_moves += num_moves - num_move  # move remaining moves
+                num_moves = new_num_moves
+        return num_moves
+
+    def move(self, num_moves):
+        num_moves = self._obtain_shortcut_if_applicable(num_moves)
+        return super().move(num_moves)
+
+
+def dump_data(epoch, actors: List[Creature], game_id):
     import datetime
     import csv
-    props = ["name", "position", "game_result"]
+    props = ["name", "position", "game_result", "shortcut_position", "shortcut_applied"]
     header = ["epoch", *props, "game_id", "timestamp"]
     timestamp = int(datetime.datetime.now().timestamp() * 1000)
     if epoch == -1 and game_id == 0:
@@ -63,7 +120,7 @@ def dump_data(epoch, actors: List[Animal], game_id):
             writer.writerow(header)
         for actor in actors:
             data = [epoch]
-            data += [asdict(actor)[p] for p in props]
+            data += [actor.asdict()[p] for p in props]
             data += [game_id, timestamp]
             writer.writerow(data)
 
@@ -125,13 +182,15 @@ def get_animal_moves(actors, strategy: Strategy, moves_pool: MovesPool):
     return animal_moves
 
 
-def chase(actors: List[Animal]):
+def chase(actors: List[Creature]):
     # TODO: chase done only when last cat position is the same as animal position? or intermediate positions do count too?
-    cat = [actor for actor in actors if actor.name == CAT][0]
+    cat = [actor for actor in actors if isinstance(actor, Cat)][0]
     for actor in actors:
         if actor.name != CAT:
             if actor.position == cat.position:
                 actor.game_result = GameResult.CHASED
+    if all([actor.game_result == GameResult.CHASED for actor in actors if not isinstance(actor, Cat)]):
+        cat.game_result = GameResult.FINISHED
     return actors
 
 
@@ -187,7 +246,7 @@ def game_finished(actors: List[Animal]):
 
 
 if __name__ == "__main__":
-    NUM_GAMES = 100
+    NUM_GAMES = 1000
     import os
     try:
         os.remove("board.log")
@@ -206,10 +265,10 @@ if __name__ == "__main__":
         animals_start_idx = 6
 
         actors = [
-            Animal(CAT, 0, GameResult.IN_PROGRESS),
-            Animal(MICE,  animals_start_idx, GameResult.IN_PROGRESS),
-            Animal(SQUIRREL,  animals_start_idx, GameResult.IN_PROGRESS),
-            Animal(BIRD,  animals_start_idx, GameResult.IN_PROGRESS),
+            Cat(0, GameResult.IN_PROGRESS),
+            Animal(MICE,  animals_start_idx, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[MICE]),
+            Animal(SQUIRREL,  animals_start_idx, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[SQUIRREL]),
+            Animal(BIRD,  animals_start_idx, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[BIRD]),
         ]
 
         strategy = Strategy.RANDOM_SINGLE
