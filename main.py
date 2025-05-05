@@ -169,6 +169,7 @@ def overfinished_logic(actors: List[Animal], animal_moves, chosen_animal_name, n
 
 def get_animal_closest_to_cat(cat: Cat, animals_in_game: List[Animal]):
     closest_animal: Optional[Animal] = None
+    random.shuffle(animals_in_game)
     for a in animals_in_game:
         if a.name != CAT:
             if closest_animal is None:
@@ -297,7 +298,7 @@ def game_finished(actors: List[Animal]):
 
 
 if __name__ == "__main__":
-    NUM_GAMES_PER_STRATEGY = 100
+    NUM_GAMES_PER_STRATEGY = 1000
     import os
     try:
         os.remove("board.log")
@@ -332,7 +333,7 @@ if __name__ == "__main__":
                 dice_1 = random.choice([GREEN, BLACK])
                 dice_2 = random.choice([GREEN, BLACK])
                 actors, moves_pool = apply_strategy(actors, strategy, dice_1, dice_2)    
-                logger.debug(f"{actors} - {moves_pool}")
+                logger.debug(f"actors - {moves_pool}")
                 render_board(actors)
                 dump_data(epoch, actors, game_id, strategy)
                 epoch += 1
