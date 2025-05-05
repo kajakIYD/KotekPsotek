@@ -2,17 +2,27 @@ import random
 from dataclasses import dataclass
 from abc import ABCMeta
 from enum import Enum, IntEnum
-from typing import List
+from typing import List, Optional
+
+
+class Strategy(Enum):
+    RANDOM_SINGLE = 0
+    RANDOM_MULTIPLE = 1
+    CLOSEST_RUN_AWAY = 2
+    ONLY_ONE_RUN_AWAY = 3
+    DEEP_LEARNING = 77
 
 
 CAT = 'C'
 MICE, SQUIRREL, BIRD = 'M', 'S', 'B'
 
+ANIMALS_START_IDX = 6
+
 NUM_SHORTCUT_MOVES = 4
 SHORTCUT_POSITIONS = {
-    MICE: 5,
-    SQUIRREL: 15,
-    BIRD: 25
+    MICE: ANIMALS_START_IDX + 5,
+    SQUIRREL: ANIMALS_START_IDX + 15,
+    BIRD: ANIMALS_START_IDX + 25
 }
 
 NUM_FIELDS = 50
@@ -104,11 +114,11 @@ class Animal(Creature):
         return super().move(num_moves)
 
 
-def dump_data(epoch, actors: List[Creature], game_id):
+def dump_data(epoch, actors: List[Creature], game_id: int, strategy: Strategy):
     import datetime
     import csv
     props = ["name", "position", "game_result", "shortcut_position", "shortcut_applied"]
-    header = ["epoch", *props, "game_id", "timestamp"]
+    header = ["epoch", *props, "game_id", "strategy", "timestamp"]
     timestamp = int(datetime.datetime.now().timestamp() * 1000)
     if epoch == -1 and game_id == 0:
         open_arg = 'w'
@@ -121,7 +131,7 @@ def dump_data(epoch, actors: List[Creature], game_id):
         for actor in actors:
             data = [epoch]
             data += [actor.asdict()[p] for p in props]
-            data += [game_id, timestamp]
+            data += [game_id, strategy.name, timestamp]
             writer.writerow(data)
 
 
@@ -137,11 +147,6 @@ def render_board(actors: List[Animal]):
 
 def animal_overfinished(chosen_animal: Animal, num_moves):
     return chosen_animal.position + num_moves > GameResult.FINISHED
-    
-
-class Strategy(Enum):
-    RANDOM_SINGLE = 0
-    RANDOM_MULTIPLE = 1
 
 
 def overfinished_logic(actors: List[Animal], animal_moves, chosen_animal_name, num_moves):
@@ -162,7 +167,44 @@ def overfinished_logic(actors: List[Animal], animal_moves, chosen_animal_name, n
     return animal_moves
 
 
-def get_animal_moves(actors, strategy: Strategy, moves_pool: MovesPool):
+def get_animal_closest_to_cat(cat: Cat, animals_in_game: List[Animal]):
+    closest_animal: Optional[Animal] = None
+    for a in animals_in_game:
+        if a.name != CAT:
+            if closest_animal is None:
+                closest_animal = a
+            else:
+                diff = a.position - cat.position
+                if diff > 0 and closest_animal.position - cat.position < diff:
+                    closest_animal = a
+                else:
+                    # TODO: think if it is possible - cat must have "jump over" some animal - is it allowed in the game
+                    pass
+    return closest_animal
+
+
+def check_overfinished(chosen_animal: Animal, moves_pool, animal_moves):
+    if animal_overfinished(chosen_animal, moves_pool.num_animal_moves):
+        animal_moves = overfinished_logic(actors, animal_moves, chosen_animal.name, moves_pool.num_animal_moves)
+    else:
+        animal_moves[chosen_animal.name] = moves_pool.num_animal_moves    
+    return animal_moves
+
+
+def any_two_animals_on_the_same_position_that_is_not_start(animals_in_game: List[Animal]):
+    for a in animals_in_game:
+        for a_ in animals_in_game:
+            if a != a_:
+                if a.position == a_.position and a.position != ANIMALS_START_IDX:
+                    return True
+    return False
+
+
+def all_animals_on_start_position(animals_in_game: List[Animal]):
+    return all(a.position == ANIMALS_START_IDX for a in animals_in_game)
+
+
+def get_animal_moves(actors: List[Creature], strategy: Strategy, moves_pool: MovesPool):
     # TODO: do some agent-based deep learning not random xD
     animal_moves = {
         BIRD: 0,
@@ -173,12 +215,21 @@ def get_animal_moves(actors, strategy: Strategy, moves_pool: MovesPool):
         animals_in_game = [actor for actor in actors if actor.name != CAT and actor.game_result == GameResult.IN_PROGRESS]
         if strategy == Strategy.RANDOM_SINGLE:
             chosen_animal = random.choice(animals_in_game)
-            if animal_overfinished(chosen_animal, moves_pool.num_animal_moves):
-                animal_moves = overfinished_logic(actors, animal_moves, chosen_animal.name, moves_pool.num_animal_moves)
+        elif strategy == Strategy.CLOSEST_RUN_AWAY:
+            cat = [a for a in actors if a.name == CAT][0]
+            chosen_animal = get_animal_closest_to_cat(cat, animals_in_game)
+        elif strategy == Strategy.ONLY_ONE_RUN_AWAY:
+            if all_animals_on_start_position(animals_in_game):
+                # first epoch
+                chosen_animal = random.choice(animals_in_game)
             else:
-                animal_moves[chosen_animal.name] = moves_pool.num_animal_moves    
+                if any_two_animals_on_the_same_position_that_is_not_start(animals_in_game):
+                    raise ValueError(f"There is no way that applying {strategy=} results in that condition, - either only one left or all left on the board")
+                # The one that run the most far is the chosen one - rest stays in place for whole game xD
+                chosen_animal = sorted(animals_in_game, key=lambda a: a.position)[-1]
         else:
             raise NotImplementedError(strategy)
+        animal_moves = check_overfinished(chosen_animal, moves_pool, animal_moves)
     return animal_moves
 
 
@@ -246,7 +297,7 @@ def game_finished(actors: List[Animal]):
 
 
 if __name__ == "__main__":
-    NUM_GAMES = 1000
+    NUM_GAMES_PER_STRATEGY = 100
     import os
     try:
         os.remove("board.log")
@@ -254,34 +305,36 @@ if __name__ == "__main__":
         pass
 
     from loguru import logger
-    if NUM_GAMES > 1:
+    if NUM_GAMES_PER_STRATEGY > 1:
         logger.remove()  # remove sink that handles writing to terminal window
     logger.add(f"board.log")
 
-    for game_id in range(NUM_GAMES):
-        logger.info(f"***********************{game_id=}***********************")
-        if game_id % 25 == 0 or game_id == NUM_GAMES - 1:
-            print(f"{game_id+1} / {NUM_GAMES}")
-        animals_start_idx = 6
+    game_id = 0
+    STRATEGIES = (Strategy.RANDOM_SINGLE, Strategy.CLOSEST_RUN_AWAY, Strategy.ONLY_ONE_RUN_AWAY)
+    for strategy in STRATEGIES:
+        cnt = 0
+        while cnt < NUM_GAMES_PER_STRATEGY:
 
-        actors = [
-            Cat(0, GameResult.IN_PROGRESS),
-            Animal(MICE,  animals_start_idx, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[MICE]),
-            Animal(SQUIRREL,  animals_start_idx, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[SQUIRREL]),
-            Animal(BIRD,  animals_start_idx, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[BIRD]),
-        ]
+            logger.info(f"***********************{game_id=} {strategy=}***********************")
+            if cnt % 25 == 0 or game_id == NUM_GAMES_PER_STRATEGY - 1:
+                print(f"{cnt+1} / {NUM_GAMES_PER_STRATEGY} - {strategy}")
 
-        strategy = Strategy.RANDOM_SINGLE
-        # strategy = "random_multiple"
+            actors = [
+                Cat(0, GameResult.IN_PROGRESS),
+                Animal(MICE,  ANIMALS_START_IDX, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[MICE]),
+                Animal(SQUIRREL,  ANIMALS_START_IDX, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[SQUIRREL]),
+                Animal(BIRD,  ANIMALS_START_IDX, GameResult.IN_PROGRESS, SHORTCUT_POSITIONS[BIRD]),
+            ]
 
-        dump_data(-1, actors, game_id)
-        epoch = 0
-        while not game_finished(actors):
-            dice_1 = random.choice([GREEN, BLACK])
-            dice_2 = random.choice([GREEN, BLACK])
-            actors, moves_pool = apply_strategy(actors, strategy, dice_1, dice_2)    
-            logger.debug(f"{actors} - {moves_pool}")
-            render_board(actors)
-            dump_data(epoch, actors, game_id)
-            epoch += 1
-            
+            dump_data(-1, actors, game_id, strategy)
+            epoch = 0
+            while not game_finished(actors):
+                dice_1 = random.choice([GREEN, BLACK])
+                dice_2 = random.choice([GREEN, BLACK])
+                actors, moves_pool = apply_strategy(actors, strategy, dice_1, dice_2)    
+                logger.debug(f"{actors} - {moves_pool}")
+                render_board(actors)
+                dump_data(epoch, actors, game_id, strategy)
+                epoch += 1
+            game_id += 1
+            cnt += 1
