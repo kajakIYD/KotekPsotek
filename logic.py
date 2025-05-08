@@ -123,6 +123,10 @@ def move(actors: List[Animal], strategy, moves_pool: MovesPool):
             actor.move(animal_moves[actor.name])
     return actors
 
+    actors = snacks_logic(actors)
+def (self;
+     )
+
 
 def get_moves_pool(dice_1, dice_2) -> MovesPool:
     num_cat_moves = 0
@@ -138,6 +142,7 @@ def get_moves_pool(dice_1, dice_2) -> MovesPool:
 def apply_strategy(actors, strategy, dice_1, dice_2):
     moves_pool = get_moves_pool(dice_1, dice_2)
     actors = move(actors, strategy, moves_pool)
+    actors = snacks_logic(actors)
     actors = chase(actors)
     return actors, moves_pool
 
