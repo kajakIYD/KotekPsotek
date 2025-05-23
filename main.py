@@ -62,15 +62,15 @@ if __name__ == "__main__":
         Strategy.CLOSEST_RUN_AWAY,
         Strategy.ONLY_ONE_RUN_AWAY,
     )
-    for num_snacks in NUM_SNACKS:
-        for shortcuts_positions in SHORTCUT_POSITIONS:
+    for shortcuts_positions in SHORTCUT_POSITIONS:
+        for num_snacks in NUM_SNACKS:
             for strategy in STRATEGIES:
                 cnt = 0
                 while cnt < NUM_GAMES_PER_STRATEGY:
 
                     logger.info(f"***********************{game_id=} {strategy=}***********************")
                     if cnt % 25 == 0 or game_id == NUM_GAMES_PER_STRATEGY - 1:
-                        print(f"{cnt+1} / {NUM_GAMES_PER_STRATEGY} - {strategy}")
+                        print(f"{cnt+1} / {NUM_GAMES_PER_STRATEGY} - {strategy} | {num_snacks=}")
 
                     actors = [
                         Cat(0, GameResult.IN_PROGRESS, num_snacks),

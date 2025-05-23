@@ -55,7 +55,10 @@ class Cat(Creature):
     def apply_snack(self):
         self._snacks_cnt -= 1
         if self._snacks_cnt < 0:
-            raise ValueError("Too much snacks consumed - snacks counter < 0!")
+            return False
+        else:
+            self.position = 0
+            return True
 
 
 class Animal(Creature):

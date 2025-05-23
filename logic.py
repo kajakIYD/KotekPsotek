@@ -123,10 +123,20 @@ def move(actors: List[Animal], strategy, moves_pool: MovesPool):
             actor.move(animal_moves[actor.name])
     return actors
 
-    actors = snacks_logic(actors)
-def (self;
-     )
-
+def snacks_logic(actors: List[Creature], snacks_logic_strategy: str = "close_at_2_fields_or_less"):
+    cat: Cat = [c for c in actors if c.name == CAT][0]
+    distance_to_cat = {}
+    if snacks_logic_strategy == "close_at_2_fields_or_less":
+        for a in actors:
+            if a.name != CAT:
+                distance = a.position - cat.position
+                if -2 <= distance <= 2:  # <= 2 to prevent situation, when animal will go on field with cat (cat is further than animal - is it even possible?)
+                    cat.apply_snack()
+                    break
+    else:
+        raise NotImplementedError(f"{snacks_logic_strategy=} not implemented")
+    return actors
+ 
 
 def get_moves_pool(dice_1, dice_2) -> MovesPool:
     num_cat_moves = 0
