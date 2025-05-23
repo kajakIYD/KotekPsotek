@@ -33,7 +33,7 @@ def dump_data(
             writer.writerow(data)
 
 
-def render_board(actors: List[Animal]):
+def render_board(actors: List[Creature]):
     board = ['' for _ in range(NUM_FIELDS + 1)]
     for actor in actors:
         if actor.game_result != GameResult.CHASED:
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                         print(f"{cnt+1} / {NUM_GAMES_PER_STRATEGY} - {strategy} | {num_snacks=}")
 
                     actors = [
-                        Cat(0, GameResult.IN_PROGRESS, num_snacks),
+                        Cat(0, GameResult.IN_PROGRESS, num_snacks, shortcuts_positions),
                         Animal(MICE,  ANIMALS_START_IDX, GameResult.IN_PROGRESS, shortcuts_positions[MICE]),
                         Animal(SQUIRREL,  ANIMALS_START_IDX, GameResult.IN_PROGRESS, shortcuts_positions[SQUIRREL]),
                         Animal(BIRD,  ANIMALS_START_IDX, GameResult.IN_PROGRESS, shortcuts_positions[BIRD]),

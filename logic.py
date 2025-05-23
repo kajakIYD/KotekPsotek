@@ -9,7 +9,7 @@ def animal_overfinished(chosen_animal: Animal, num_moves):
     return chosen_animal.position + num_moves > GameResult.FINISHED
 
 
-def overfinished_logic(actors: List[Animal], animal_moves, chosen_animal_name, num_moves):
+def overfinished_logic(actors: List[Creature], animal_moves, chosen_animal_name, num_moves):
     animal_moves[chosen_animal_name] = 1
     num_remaining_animal_moves = num_moves - 1
     animals_for_redraw = [
@@ -27,7 +27,7 @@ def overfinished_logic(actors: List[Animal], animal_moves, chosen_animal_name, n
     return animal_moves
 
 
-def get_animal_closest_to_cat(cat: Cat, animals_in_game: List[Animal]):
+def get_animal_closest_to_cat(cat: Cat, animals_in_game: List[Animal]) -> Animal:
     closest_animal: Optional[Animal] = None
     random.shuffle(animals_in_game)
     if len(animals_in_game) == 1:
@@ -76,11 +76,11 @@ def get_animal_moves(actors: List[Creature], strategy: Strategy, moves_pool: Mov
         MICE: 0
     }
     if moves_pool.num_animal_moves > 0:
-        animals_in_game = [actor for actor in actors if actor.name != CAT and actor.game_result == GameResult.IN_PROGRESS]
+        animals_in_game: List[Animal] = [actor for actor in actors if actor.name != CAT and actor.game_result == GameResult.IN_PROGRESS]
         if strategy == Strategy.RANDOM_SINGLE:
             chosen_animal = random.choice(animals_in_game)
         elif strategy == Strategy.CLOSEST_RUN_AWAY:
-            cat = [a for a in actors if a.name == CAT][0]
+            cat: Cat = [a for a in actors if a.name == CAT][0]
             chosen_animal = get_animal_closest_to_cat(cat, animals_in_game)
         elif strategy == Strategy.ONLY_ONE_RUN_AWAY:
             if all_animals_on_start_position(animals_in_game):
@@ -109,7 +109,7 @@ def chase(actors: List[Creature]):
     return actors
 
 
-def move(actors: List[Animal], strategy, moves_pool: MovesPool):
+def move(actors: List[Creature], strategy: Strategy, moves_pool: MovesPool):
     animal_moves = get_animal_moves(
         actors, strategy, moves_pool
     )
@@ -123,14 +123,13 @@ def move(actors: List[Animal], strategy, moves_pool: MovesPool):
             actor.move(animal_moves[actor.name])
     return actors
 
-def snacks_logic(actors: List[Creature], snacks_logic_strategy: str = "close_at_2_fields_or_less"):
+def snacks_logic(actors: List[Creature], snacks_logic_strategy: str = "close_at_2_fields_or_less") -> List[Creature]:
     cat: Cat = [c for c in actors if c.name == CAT][0]
-    distance_to_cat = {}
     if snacks_logic_strategy == "close_at_2_fields_or_less":
         for a in actors:
             if a.name != CAT:
                 distance = a.position - cat.position
-                if -2 <= distance <= 2:  # <= 2 to prevent situation, when animal will go on field with cat (cat is further than animal - is it even possible?)
+                if -2 <= distance <= 2:  # <= 2 to prevent situation, when animal will go on field with cat (yes, it is possible according to game's rules)
                     cat.apply_snack()
                     break
     else:
@@ -149,10 +148,10 @@ def get_moves_pool(dice_1, dice_2) -> MovesPool:
     return MovesPool(num_cat_moves, num_animal_moves)
 
 
-def apply_strategy(actors, strategy, dice_1, dice_2):
+def apply_strategy(actors: List[Creature], strategy: Strategy, dice_1: str, dice_2: str):
+    actors = snacks_logic(actors)
     moves_pool = get_moves_pool(dice_1, dice_2)
     actors = move(actors, strategy, moves_pool)
-    actors = snacks_logic(actors)
     actors = chase(actors)
     return actors, moves_pool
 
@@ -168,7 +167,7 @@ def get_animals_in_game(actors: List[Animal]):
     return animals_in_game
 
 
-def game_finished(actors: List[Animal]):
+def game_finished(actors: List[Creature]):
     animals_chased = all([actor.game_result != GameResult.IN_PROGRESS for actor in actors if actor.name != CAT])
     animals_finished = all([actor.game_result == GameResult.FINISHED for actor in actors if actor.name != CAT])
     cat_finished = all([actor.game_result == GameResult.FINISHED for actor in actors if actor.name == CAT])
