@@ -1,6 +1,7 @@
+from enum import Enum
 from typing import List, Optional
 from classes import Animal, Creature, Cat, MovesPool
-from utils import GREEN, GameOverfinishedException, GameResult, CAT, ANIMALS_START_IDX, BIRD, SQUIRREL, MICE, Strategy
+from utils import GREEN, GameOverfinishedException, GameResult, CAT, ANIMALS_START_IDX, BIRD, SQUIRREL, MICE, SnacksLogicStrategy, Strategy
 import random
 
 
@@ -123,16 +124,37 @@ def move(actors: List[Animal], strategy, moves_pool: MovesPool):
             actor.move(animal_moves[actor.name])
     return actors
 
-def snacks_logic(actors: List[Creature], snacks_logic_strategy: str = "close_at_2_fields_or_less"):
+
+def snacks_logic(actors: List[Creature], snacks_logic_strategy: SnacksLogicStrategy):
     cat: Cat = [c for c in actors if c.name == CAT][0]
-    distance_to_cat = {}
-    if snacks_logic_strategy == "close_at_2_fields_or_less":
+    if isinstance(snacks_logic_strategy, SnacksLogicStrategy):
         for a in actors:
             if a.name != CAT:
                 distance = a.position - cat.position
-                if -2 <= distance <= 2:  # <= 2 to prevent situation, when animal will go on field with cat (cat is further than animal - is it even possible?)
-                    cat.apply_snack()
-                    break
+                if distance == 0:
+                    raise ValueError(f"Animal {a} cannot be at same position when executing snacks_logic - animal should be chased in previous iteration of game")
+                if snacks_logic_strategy == SnacksLogicStrategy.SIMPLEST_MOST_INTUITIVE:
+                    if -2 <= distance <= 2:
+                        cat.apply_snack()
+                        break
+                else:
+                    raise NotImplementedError(f"{snacks_logic_strategy=} not implemented")
+                    if snacks_logic_strategy > 0:
+                        pass  # ?
+                    # Ex. -1
+                    if snacks_logic_strategy <= distance:
+                        # Ex. -1 <= -2? No
+                        # Ex. -1 <= 5? Yes
+
+                        # <= 2 to prevent situation, when animal will go on field with cat (cat is further than animal - is it even possible?)
+                        # more likely is, that green-black or black-green is drawn, than just black-black
+                        # therefore (probably) it is better to give a snack when cat is only one field from some animal
+                        cat.apply_snack()
+                        break
+                    elif snacks_logic_strategy < 0:
+                        if snacks_logic_strategy >= distance:
+                            pass
+
     else:
         raise NotImplementedError(f"{snacks_logic_strategy=} not implemented")
     return actors
@@ -149,10 +171,10 @@ def get_moves_pool(dice_1, dice_2) -> MovesPool:
     return MovesPool(num_cat_moves, num_animal_moves)
 
 
-def apply_strategy(actors, strategy, dice_1, dice_2):
+def apply_strategy(actors, strategy, snacks_logic_strategy: SnacksLogicStrategy, dice_1, dice_2):
     moves_pool = get_moves_pool(dice_1, dice_2)
     actors = move(actors, strategy, moves_pool)
-    actors = snacks_logic(actors)
+    actors = snacks_logic(actors, snacks_logic_strategy)
     actors = chase(actors)
     return actors, moves_pool
 

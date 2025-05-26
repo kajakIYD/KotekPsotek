@@ -84,7 +84,7 @@ if __name__ == "__main__":
                     while not logic.game_finished(actors):
                         dice_1 = random.choice([GREEN, BLACK])
                         dice_2 = random.choice([GREEN, BLACK])
-                        actors, moves_pool = logic.apply_strategy(actors, strategy, dice_1, dice_2)    
+                        actors, moves_pool = logic.apply_strategy(actors, strategy, snacks_logic_strategy, dice_1, dice_2)    
                         logger.debug(f"actors - {moves_pool}")
                         render_board(actors)
                         dump_data(epoch, actors, game_id, strategy, num_snacks, shortcuts_positions)

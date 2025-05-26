@@ -61,3 +61,13 @@ class GameResult(IntEnum):
     CHASED = -2
     IN_PROGRESS = -1
     FINISHED = NUM_FIELDS  # 0 index is start field, 50th index  (is 50th field that player steps on))
+
+
+class SnacksLogicStrategy(Enum):
+    CLOSE_AT_1_FIELD_ANIMAL_IN_FRONT_OF_CAT_PRIORITIZED = 1
+    CLOSE_AT_1_FIELD_ANIMAL_AT_BACK_OF_CAT_PRIORITIZED = -1
+
+    SIMPLEST_MOST_INTUITIVE = 0
+
+    CLOSE_AT_2_FIELDS_OR_LESS_ANIMAL_IN_FRONT_OF_CAT_PRIORITIZED = 2
+    CLOSE_AT_2_FIELDS_OR_LESS_ANIMAL_AT_BACK_OF_CAT_PRIORITIZED = 2
