@@ -50,15 +50,19 @@ class Creature(metaclass=ABCMeta):
 class Cat(Creature):
     def __init__(self, position, game_result, num_snacks):
         super().__init__(CAT, position, game_result, float("nan"))
+        self._initial_num_snacks = num_snacks
         self._snacks_cnt = num_snacks
 
     def apply_snack(self):
-        self._snacks_cnt -= 1
-        if self._snacks_cnt < 0:
-            return False
+        if self._initial_num_snacks > 0:
+            self._snacks_cnt -= 1
+            if self._snacks_cnt < 0:
+                return False
+            else:
+                self.position = 0
+                return True
         else:
-            self.position = 0
-            return True
+            raise ValueError(f"Not possible to apply snack when initial number of snacks is {self._initial_num_snacks}")
 
 
 class Animal(Creature):

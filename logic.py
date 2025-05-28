@@ -129,11 +129,12 @@ def snacks_logic(actors: List[Creature], snacks_logic_strategy: SnacksLogicStrat
     cat: Cat = [c for c in actors if c.name == CAT][0]
     if isinstance(snacks_logic_strategy, SnacksLogicStrategy):
         for a in actors:
-            if a.name != CAT:
+            if a.name != CAT and a.game_result == GameResult.IN_PROGRESS:
                 distance = a.position - cat.position
                 if distance == 0:
                     raise ValueError(f"Animal {a} cannot be at same position when executing snacks_logic - animal should be chased in previous iteration of game")
                 if snacks_logic_strategy == SnacksLogicStrategy.SIMPLEST_MOST_INTUITIVE:
+                    # Cat is two fields from animal, so there is high possibility that animal will be chased
                     if -2 <= distance <= 2:
                         cat.apply_snack()
                         break
@@ -171,10 +172,11 @@ def get_moves_pool(dice_1, dice_2) -> MovesPool:
     return MovesPool(num_cat_moves, num_animal_moves)
 
 
-def apply_strategy(actors, strategy, snacks_logic_strategy: SnacksLogicStrategy, dice_1, dice_2):
+def apply_strategy(actors, strategy, snacks_logic_strategy: Optional[SnacksLogicStrategy], dice_1, dice_2):
+    if snacks_logic_strategy is not None:
+        actors = snacks_logic(actors, snacks_logic_strategy)
     moves_pool = get_moves_pool(dice_1, dice_2)
     actors = move(actors, strategy, moves_pool)
-    actors = snacks_logic(actors, snacks_logic_strategy)
     actors = chase(actors)
     return actors, moves_pool
 
