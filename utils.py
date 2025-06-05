@@ -53,8 +53,9 @@ class Strategy(Enum):
     RANDOM_SINGLE = 0
     RANDOM_MULTIPLE = 1
     CLOSEST_RUN_AWAY = 2
-    ONLY_ONE_RUN_AWAY = 3
-    DEEP_LEARNING = 77
+    ONLY_ONE_RUN_AWAY = 3    
+    DEEP_Q_NETWORK = 66
+    DEEP_REINFORCEMENT_LEARNING = 77
 
 
 class GameResult(IntEnum):
