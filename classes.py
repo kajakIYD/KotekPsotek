@@ -51,12 +51,12 @@ class Cat(Creature):
     def __init__(self, position, game_result, num_snacks):
         super().__init__(CAT, position, game_result, float("nan"))
         self._initial_num_snacks = num_snacks
-        self._snacks_cnt = num_snacks
+        self._snacks_cnt = 0
 
     def apply_snack(self):
         if self._initial_num_snacks > 0:
-            self._snacks_cnt -= 1
-            if self._snacks_cnt < 0:
+            self._snacks_cnt += 1
+            if self._snacks_cnt > self._initial_num_snacks:
                 return False
             else:
                 self.position = 0
