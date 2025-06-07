@@ -57,6 +57,7 @@ class Cat(Creature):
         if self._initial_num_snacks > 0:
             self._snacks_cnt += 1
             if self._snacks_cnt > self._initial_num_snacks:
+                self._snacks_cnt = self._initial_num_snacks
                 return False
             else:
                 self.position = 0
